@@ -1,0 +1,7 @@
+*.suo
+Windows/bin/Debug/*
+Windows/obj/x86/Debug/*
+Windows/publish/*
+Core/bin/Debug/*
+Core/obj/x86/Debug/*
+Core/publish/*

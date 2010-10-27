@@ -1,0 +1,8 @@
+C:\Users\firat\documents\visual studio 2010\Projects\PutioFS\Core\bin\Debug\Core.dll
+C:\Users\firat\documents\visual studio 2010\Projects\PutioFS\Core\bin\Debug\Core.pdb
+C:\Users\firat\documents\visual studio 2010\Projects\PutioFS\Core\bin\Debug\Putio.dll
+C:\Users\firat\documents\visual studio 2010\Projects\PutioFS\Core\bin\Debug\Newtonsoft.Json.dll
+C:\Users\firat\documents\visual studio 2010\Projects\PutioFS\Core\bin\Debug\Newtonsoft.Json.xml
+C:\Users\firat\documents\visual studio 2010\Projects\PutioFS\Core\obj\Debug\ResolveAssemblyReference.cache
+C:\Users\firat\documents\visual studio 2010\Projects\PutioFS\Core\obj\Debug\Core.dll
+C:\Users\firat\documents\visual studio 2010\Projects\PutioFS\Core\obj\Debug\Core.pdb
