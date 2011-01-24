@@ -6,34 +6,26 @@ using Putio;
 
 namespace PutioFS.Core
 {
-    public class PutioFSItem
+    public class PutioFsItem
     {
-        public Item ApiItem;
-        public Api Api;
-        public PutioFolder Parent;
-        public bool IsDirectory { get { return this.ApiItem.IsDirectory; } }
-        public int Id { get { return Int32.Parse(this.ApiItem.Id); } }
-        public String Name
+        public readonly PutioFsDataProvider DataProvider;
+        public String Name { get { return this.DataProvider.Name; } }
+        public bool IsDirectory { get { return this.DataProvider.IsDirectory; } }
+        public long Size
         {
             get
             {
-                String tmp = this.ApiItem.Name;
-                foreach (char illegal_char in Constants.ILLEGAL_CHARACTERS)
-                {
-                    tmp = tmp.Replace(illegal_char, '_');
-                }
-                return tmp;
+                if (this.IsDirectory)
+                    return 0;
+                
+                return this.DataProvider.Size;
             }
         }
+        public PutioFolder Parent;
 
-        public PutioFSItem(Api api, Item api_item, PutioFolder parent)
+        public PutioFsItem(PutioFsDataProvider data_provider, PutioFolder parent)
         {
-            if (parent == null && api_item.Id != "0")
-                throw new ApiException(api_item, "Only root folder can have null as parent.");
-
-            this.Api = api;
-            this.ApiItem = api_item;
-            this.Parent = parent;
+            this.DataProvider = data_provider;
         }
     }
 }

@@ -2,46 +2,65 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+
 using Putio;
 
 namespace PutioFS.Core
 {
-    public class PutioFolder : PutioFSItem
+    public class PutioFolder : PutioFsItem
     {
         private List<PutioFolder> SubFolders;
         private List<PutioFile> Files;
+        private DateTime LastContentUpdate;
 
-        public PutioFolder(Api api, Item api_item, PutioFolder parent)
-            : base(api, api_item, parent)
+        private static NLog.Logger logger = NLog.LogManager.GetCurrentClassLogger();
+
+        public PutioFolder(PutioFsDataProvider data_provider, PutioFolder parent)
+            : base(data_provider, parent)
         {
-            if (!api_item.IsDirectory)
-                throw new ApiException(api_item, "Can not create a directory entry in the FS for a non directory item.");
+            if (!this.IsDirectory)
+                throw new Exception("Can not create a directory entry for a non directory item.");
+        }
+
+        private bool ShouldUpdateContents()
+        {
+            if (this.LastContentUpdate == null)
+                return true;
+
+            if (this.LastContentUpdate.AddSeconds(Constants.FOLDER_UPDATE_INTERVAL_SECONDS) < DateTime.Now)
+            {
+                return true;
+            }
+
+            return false;
         }
 
         private void UpdateContent()
         {
-            if (this.SubFolders == null)
+            if (this.ShouldUpdateContents())
             {
-                lock (this)
+                lock(this)
                 {
                     // Check again if somebody else with the lock already cached these...
-                    if (this.SubFolders == null)
+                    if (this.ShouldUpdateContents())
                     {
+                        logger.Debug("Updating folder contents for {0}", this.Name);
                         this.SubFolders = new List<PutioFolder>();
                         this.Files = new List<PutioFile>();
-                        foreach (Item item in this.Api.GetItems(this.ApiItem.Id))
+                        foreach (Item item in this.DataProvider.GetFsItems(this))
                         {
                             if (item.IsDirectory)
-                                this.SubFolders.Add(new PutioFolder(this.Api, item, this));
+                                this.SubFolders.Add(new PutioFolder(new PutioFsApiDataProvider(item), this));
                             else
-                                this.Files.Add(new PutioFile(this.Api, item, this));
+                                this.Files.Add(new PutioFile(new PutioFsApiDataProvider(item), this));
                         }
+                        this.LastContentUpdate = DateTime.Now;
                     }
                 }
             }
         }
 
-        public PutioFSItem GetItem(String name)
+        public PutioFsItem GetItem(String name)
         {
             this.UpdateContent();
             foreach (PutioFolder folder in this.SubFolders)

@@ -88,7 +88,6 @@
             this.LoginPutioSecret.AccessibleName = "Put.io API Key";
             this.LoginPutioSecret.Location = new System.Drawing.Point(93, 45);
             this.LoginPutioSecret.Name = "LoginPutioSecret";
-            this.LoginPutioSecret.PasswordChar = '*';
             this.LoginPutioSecret.Size = new System.Drawing.Size(119, 20);
             this.LoginPutioSecret.TabIndex = 1;
             this.LoginPutioSecret.UseSystemPasswordChar = true;

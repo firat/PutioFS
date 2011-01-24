@@ -1,0 +1,28 @@
+== PutioFS
+
+This is a very early release and the implementation is far from complete.
+However, interested developers are invited to contribute at this early stage in
+order to produce a better architecture. The current version is programmed by
+Firat Can Basarir and it is time to open it to the community.
+
+PutioFS is a cross-platform virtual file system built using C#. It uses Put.io
+.NET API and Dokan.Net to create a virtual drive that provides seamless access
+to the files on your Put.io account as if they are on the local disk. It does
+NOT synchronize your Put.io account to the disk. Files are fetched on demand
+(parts of files are streamed only when a process READs it) and cached on the
+disk.
+
+== Technical Information
+
+PutioFS uses DokanNet on Windows and Mono.Fuse on Mac OS X and Linux based
+systems. The core consists of a <PutioFile> class that implements a FileStream
+interface which can be conveniently used to implement the required Dokan/FUSE
+functions.
+
+Right now, cache files are pre-allocated on the disk which is far from optimal.
+When a process reads a few bytes from a 2GB file, 2GBs on local disk allocated
+for that file. Background threads download a file according to the position of
+the file handles and recent reads.
+
+This download mechanism is the core of this project and should be improved
+significantly in order to make it usable.
