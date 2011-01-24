@@ -5,7 +5,10 @@ However, interested developers are invited to contribute at this early stage in
 order to produce a better architecture. The current version is programmed by
 Firat Can Basarir and it is time to open it to the community.
 
-Right now, it only works on Windows but the core implementation is platform independent. When the Fuse callback functions are implemented, it should work on Linux and Mac OS X. PutioFS depends on Dokan library to be installed. The latest version can be found at http://dokan-dev.net/en/download/#dokan.
+Right now, it only works on Windows but the core implementation is platform
+independent. When the Fuse callback functions are implemented, it should work on
+Linux and Mac OS X. PutioFS depends on Dokan library to be installed. The latest
+version can be found at http://dokan-dev.net/en/download/#dokan.
 
 PutioFS is a cross-platform virtual file system built using C#. It uses Put.io
 .NET API and Dokan.Net to create a virtual drive that provides seamless access
