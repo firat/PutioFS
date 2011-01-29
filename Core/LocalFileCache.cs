@@ -15,7 +15,6 @@ namespace PutioFS.Core
         public readonly LongRangeCollection RangeCollection;
         public readonly PutioFile PutioFile;
 
-        private FileStream WriteStream;
         private object WriteLock = new object();
         private int WritesWithoutIndexUpdate;
         private bool Initialized;
@@ -145,8 +144,8 @@ namespace PutioFS.Core
                 {
                     if (disposing)
                     {
-                        if (this.WriteStream != null)
-                            this.WriteStream.Close();
+                        // if (this.WriteStream != null)
+                        //    this.WriteStream.Close();
                     }
 
                 }

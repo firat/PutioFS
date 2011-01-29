@@ -9,20 +9,80 @@ using System.IO;
 using System.Threading;
 using System.Security;
 using System.Runtime.InteropServices;
+using System.Xml;
+using System.Reflection;
 
 
 using Putio;
 using PutioFS.Core;
 using WinMount.Properties;
+
 namespace PutioFS.Windows
 {
+    
     class WinMount
     {
 
         private static NLog.Logger logger = NLog.LogManager.GetCurrentClassLogger();
 
-        public static AuthForm auth_form;
+        public static SettingsForm settings_form;
+        public static MainWindow main_window;
         public static bool Mounted = false;
+
+        public static void CheckForUpdates(object Sender, EventArgs e)
+        {
+            XmlTextReader xml_reader = null;
+            try
+            {
+                xml_reader = new XmlTextReader("http://versioncheck.putiofs.put.io/version.xml");
+
+                xml_reader.MoveToContent();
+                string element_name = null;
+                string url;
+                Version new_version = null;
+
+                if (xml_reader.NodeType == XmlNodeType.Element && xml_reader.Name == "PutioFS")
+                {
+                    while (xml_reader.Read())
+                    {
+                        if (xml_reader.NodeType == XmlNodeType.Element)
+                            element_name = xml_reader.Name;
+                        if ((xml_reader.NodeType == XmlNodeType.Text) && xml_reader.HasValue)
+                        {
+                            switch (element_name)
+                            {
+                                case "version":
+                                    new_version = new Version(xml_reader.Value);
+                                    break;
+                                case "url":
+                                    url = xml_reader.Value;
+                                    break;
+                            }
+                        }
+                    }
+                }
+
+                Version current_version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
+                if (current_version.CompareTo(new_version) < 0)
+                {
+                    MessageBox.Show("There is a new version");
+                }
+                else
+                {
+                    MessageBox.Show("No new updates.");
+                }
+            }
+            catch
+            {
+                MessageBox.Show("There was a problem checking or updates.");
+            }
+            finally
+            {
+                if (xml_reader != null)
+                    xml_reader.Close();
+            }
+
+        }
 
         public static void TryMount(object Sender, EventArgs e)
         {
@@ -36,12 +96,12 @@ namespace PutioFS.Windows
                 Thread dokan_thread = new Thread(PutioDokanOperations._DokanMount);
                 dokan_thread.Start();
                 Mounted = true;
-                auth_form.ToggleMountUnmount(Mounted);
+                main_window.ToggleMountUnmount(Mounted);
             }
             catch (PutioException)
             {
                 MessageBox.Show("Put.io user not found.");
-                auth_form.InvokeSettings(null, null);
+                settings_form.InvokeSettings();
             }
             
         }
@@ -56,7 +116,7 @@ namespace PutioFS.Windows
             }
             catch { }
             Mounted = false;
-            auth_form.ToggleMountUnmount(Mounted);
+            main_window.ToggleMountUnmount(Mounted);
         }
 
         public static void ExitApplication(object Sender, EventArgs e)
@@ -114,7 +174,12 @@ namespace PutioFS.Windows
 
         public static void RefreshCacheSize()
         {
-            auth_form.SetCacheDisplay(GetCacheSize() / (1024 * 1024));
+            main_window.SetCacheDisplay(GetCacheSize() / (1024 * 1024));
+        }
+
+        public static void InvokeSettings(object sender, EventArgs e)
+        {
+            WinMount.settings_form.InvokeSettings();
         }
 
         static long GetCacheSize()
@@ -163,15 +228,21 @@ namespace PutioFS.Windows
             }
 
             AppDomain.CurrentDomain.UnhandledException += new UnhandledExceptionEventHandler(CrashLogger);
-            WinMount.auth_form = new AuthForm();
+            Application.EnableVisualStyles();
+            Application.SetCompatibleTextRenderingDefault(false);
+
+            WinMount.settings_form = new SettingsForm();
+            WinMount.main_window = new MainWindow();
+            WinMount.main_window.InitializeTrayIcon();
+            WinMount.main_window.GoInvisible();
+
             try
             {
                 TryMount(null, null);
                 RefreshCacheSize();
-                auth_form.notify_icon.Visible = true;
-                
+                WinMount.main_window.notify_icon.Visible = true;
                 Application.Run();
-                auth_form.notify_icon.Visible = false;
+                WinMount.main_window.notify_icon.Visible = false;
             }
             finally
             {
