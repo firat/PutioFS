@@ -22,21 +22,21 @@ namespace PutioFS.Windows
         private PutioFolder root;
         public readonly Char DriveLetter;
 
-        public static void _DokanMount()
+        public static void _DokanMount(object _DriveLetter)
         {
             DokanOptions opt = new DokanOptions();
-            PutioDokanOperations ops = new PutioDokanOperations('P');
+            PutioDokanOperations ops = new PutioDokanOperations((char)_DriveLetter);
             opt.DebugMode = false;
             opt.DriveLetter = ops.DriveLetter;
             opt.ThreadCount = 5;
             opt.VolumeLabel = "put.io";
             // opt.NetworkDrive = true;
-            DokanNet.DokanMain(opt, );
+            DokanNet.DokanMain(opt, ops);
         }
 
-        public static void _DokanUnmount()
+        public static void _DokanUnmount(char DriveLetter)
         {
-            DokanNet.DokanUnmount(ops.DriveLetter);
+            DokanNet.DokanUnmount(DriveLetter);
         }
 
         public static List<String> GetPathElements(String path)
@@ -53,8 +53,9 @@ namespace PutioFS.Windows
             return elements;
         }
 
-        public PutioDokanOperations()
+        public PutioDokanOperations(char DriveLetter)
         {
+            this.DriveLetter = DriveLetter;
             Item item = new Item();
             item.Name = @"\";
             item.Id = "0";

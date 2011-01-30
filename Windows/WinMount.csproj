@@ -82,9 +82,8 @@
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\Vendor\DokanNet.dll</HintPath>
     </Reference>
-    <Reference Include="NLog, Version=2.0.0.0, Culture=neutral, PublicKeyToken=5120e14c03d0593c, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\..\..\..\..\..\Program Files (x86)\NLog\.NET Framework 4.0\NLog.dll</HintPath>
+    <Reference Include="NLog">
+      <HintPath>..\Vendor\NLog.dll</HintPath>
     </Reference>
     <Reference Include="Putio, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>

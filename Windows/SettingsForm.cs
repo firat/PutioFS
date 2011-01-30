@@ -13,6 +13,8 @@ namespace PutioFS.Windows
 {
     public partial class SettingsForm : Form
     {
+
+        public static readonly String ExecPath = String.Format("{0} /silent", Application.ExecutablePath.ToString());
         public SettingsForm()
         {
             InitializeComponent();
@@ -36,7 +38,7 @@ namespace PutioFS.Windows
             Settings.Default.APIKey = this.LoginApiKey.Text;
             Settings.Default.Secret = this.LoginPutioSecret.Text;
             RegistryKey k = Registry.CurrentUser.CreateSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run");
-            k.SetValue("PutioFS Windows Mounter", Application.ExecutablePath.ToString());
+            k.SetValue("PutioFS Windows Mounter", SettingsForm.ExecPath);
             if (!this.OpenAtLogin.Checked)
                 k.DeleteValue("PutioFS Windows Mounter");
 
@@ -50,7 +52,7 @@ namespace PutioFS.Windows
             this.LoginPutioSecret.Text = Settings.Default.Secret;
             RegistryKey k = Registry.CurrentUser.CreateSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run");
             object value = k.GetValue("PutioFS Windows Mounter");
-            if (value != null && value.ToString() == Application.ExecutablePath.ToString())
+            if (value != null && value.ToString() == SettingsForm.ExecPath)
                 this.OpenAtLogin.Checked = true;
             else
                 this.OpenAtLogin.Checked = false;

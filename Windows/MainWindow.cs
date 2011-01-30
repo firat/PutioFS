@@ -80,7 +80,13 @@ namespace PutioFS.Windows
                 {
                     DEV_BROADCAST_VOLUME Volume = (DEV_BROADCAST_VOLUME)Marshal.PtrToStructure(m.LParam, typeof(DEV_BROADCAST_VOLUME));
                     char DriveLetter = GetDriveLetterFromMask(Volume.dbcv_unitmask);
-                    MessageBox.Show(DriveLetter.ToString());
+                    if (DriveLetter == WinMount.drive_letter)
+                    {
+                        if (WinMount.Silent)
+                            WinMount.Silent = false;
+                        else
+                            System.Diagnostics.Process.Start("explorer.exe", String.Format(@"{0}:\", WinMount.drive_letter));
+                    }
                 }
             }
 
