@@ -180,6 +180,17 @@ namespace PutioFS.Windows
             }
         }
 
+        public static void LaunchWebsite(object Sender, EventArgs e)
+        {
+            System.Diagnostics.Process.Start("http://put.io");
+        }
+
+        public static void ExploreDrive(object Sender, EventArgs e)
+        {
+            if (WinMount.Mounted)
+                System.Diagnostics.Process.Start("explorer.exe", String.Format(@"{0}:\", WinMount.drive_letter));
+        }
+
         public static void RefreshCacheSize()
         {
             main_window.SetCacheDisplay(GetCacheSize() / (1024 * 1024));

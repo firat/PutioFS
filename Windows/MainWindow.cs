@@ -85,7 +85,7 @@ namespace PutioFS.Windows
                         if (WinMount.Silent)
                             WinMount.Silent = false;
                         else
-                            System.Diagnostics.Process.Start("explorer.exe", String.Format(@"{0}:\", WinMount.drive_letter));
+                            WinMount.ExploreDrive(null, null);
                     }
                 }
             }
@@ -109,7 +109,10 @@ namespace PutioFS.Windows
             this.CreateMenuItem("Unmount", WinMount.TryUnmount);
             this.CreateMenuItem("Purge cache", WinMount.PurgeCache);
             this.notify_icon.ContextMenu.MenuItems.Add(new MenuItem("-"));
+            this.CreateMenuItem("Launch website", WinMount.LaunchWebsite);
+            this.CreateMenuItem("Explore drive", WinMount.ExploreDrive);
             this.CreateMenuItem("Check for updates", WinMount.CheckForUpdates);
+            this.notify_icon.ContextMenu.MenuItems.Add(new MenuItem("-"));
             this.CreateMenuItem("Exit", WinMount.ExitApplication);
 
             this.notify_icon.MouseClick += new MouseEventHandler(WinMount.RightClickHandler);
@@ -149,12 +152,14 @@ namespace PutioFS.Windows
             {
                 this.HideLink("Mount");
                 this.ShowLink("Unmount");
+                this.ShowLink("Explore drive");
                 this.HideLink("Purge cache");
             }
             else
             {
                 this.ShowLink("Mount");
                 this.HideLink("Unmount");
+                this.HideLink("Explore drive");
                 this.ShowLink("Purge cache");
             }
         }
