@@ -7,13 +7,13 @@ using System.Threading;
 
 namespace PutioFS.Core
 {
-    public class LocalFileCache : IDisposable
+    public class LocalFileCache
     {
         private static NLog.Logger logger = NLog.LogManager.GetCurrentClassLogger();
-        private bool _IsDisposed;
 
         public readonly LongRangeCollection RangeCollection;
         public readonly PutioFile PutioFile;
+        public Boolean BufferedAll { get { return this.Contains(0, this.PutioFile.Size); } }
 
         private object WriteLock = new object();
         private int WritesWithoutIndexUpdate;
@@ -104,7 +104,6 @@ namespace PutioFS.Core
 
         public void WaitToBuffer(long range_start, long range_end)
         {
-            logger.Debug("There are {0} open handles.", PutioFileSystem.GetInstance().NumOpenHandles);
             while(!this.Contains(range_start, range_end))
                 Thread.Sleep(50);
         }
@@ -134,34 +133,6 @@ namespace PutioFS.Core
 
                 return BufferThis;
             }
-        }
-
-        protected virtual void Dispose(bool disposing)
-        {
-            lock (this)
-            {
-                if (!this._IsDisposed)
-                {
-                    if (disposing)
-                    {
-                        // if (this.WriteStream != null)
-                        //    this.WriteStream.Close();
-                    }
-
-                }
-                this._IsDisposed = true;
-            }
-        }
-
-        public void Dispose()
-        {
-            Dispose(true);
-            GC.SuppressFinalize(this);
-        }
-
-        ~LocalFileCache()
-        {
-            Dispose(false);
         }
     }
 }

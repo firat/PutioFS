@@ -6,17 +6,19 @@ using System.Drawing;
 using System.Linq;
 using System.Text;
 using System.Windows.Forms;
-using WinMount.Properties;
+using WinMounter.Properties;
 using Microsoft.Win32;
 
 namespace PutioFS.Windows
 {
     public partial class SettingsForm : Form
     {
-
         public static readonly String ExecPath = String.Format("{0} /silent", Application.ExecutablePath.ToString());
-        public SettingsForm()
+        public readonly WinMounter Mounter;
+
+        public SettingsForm(WinMounter wm)
         {
+            this.Mounter = wm;
             InitializeComponent();
             this.LoadUserInfo();
         }
@@ -26,8 +28,8 @@ namespace PutioFS.Windows
             if (this.ShowDialog() == DialogResult.OK)
             {
                 this.SaveUserInfo();
-                if (!WinMount.Mounted)
-                    WinMount.TryMount(null, null);
+                if (!this.Mounter.Mounted)
+                    this.Mounter.TryMount(null, null);
             }
             else
                 this.LoadUserInfo();

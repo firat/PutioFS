@@ -19,9 +19,9 @@ namespace PutioFS.Core
         private static NLog.Logger logger = NLog.LogManager.GetCurrentClassLogger();
 
         private bool _IsDisposed = false;
+        private bool IsInitialized = false;
         public long Position { get { try { return this.ReadStream.Position; } catch { return 0; } } }
         public readonly PutioFile PutioFile;
-        private DownloadManager DownloadManager;
         private Stream ReadStream;
         private object ReadSeekLock = new object();
 
@@ -29,7 +29,11 @@ namespace PutioFS.Core
         {
             this.PutioFile = file;
             this.ReadStream = file.DataProvider.GetNewLocalReadStream();
-            this.DownloadManager = new DownloadManager(this);
+        }
+
+        private void Initialize()
+        {
+            this.PutioFile.Fs.DownloadManager.Register(this);
         }
 
         public int Read(byte[] buffer, int buffer_start_index, int max_read_size)
@@ -39,9 +43,15 @@ namespace PutioFS.Core
 
             lock (this.ReadSeekLock)
             {
+                if (!this.IsInitialized)
+                    this.Initialize();
+
                 max_read_size = (int)Math.Min(max_read_size, this.PutioFile.Size - this.Position);
-                this.DownloadManager.OnRead(this.Position, max_read_size);
-                return this.ReadStream.Read(buffer, buffer_start_index, max_read_size);
+                while (this.PutioFile.Cache.CacheRange(this.Position) == 0)
+                    Thread.Sleep(50);
+                return this.ReadStream.Read(buffer, 
+                                            buffer_start_index, 
+                                            (int)Math.Min(this.PutioFile.Cache.CacheRange(this.Position), max_read_size));
             }
         }
 
@@ -51,11 +61,14 @@ namespace PutioFS.Core
             {
                 if (offset == this.Position)
                     return offset;
+                long pos = this.ReadStream.Seek(offset, SeekOrigin.Begin);
+                
+                // Initialize the handle after seek.
+                if (!this.IsInitialized)
+                    this.Initialize();
+                this.PutioFile.Fs.DownloadManager.UpdatePosition(this);
 
-                this.DownloadManager.OnSeek(offset);
-
-                long new_pos = this.ReadStream.Seek(offset, SeekOrigin.Begin);
-                return new_pos;
+                return pos;
             }
         }
 
@@ -64,7 +77,8 @@ namespace PutioFS.Core
         {
             this.ReadStream.Close();
             this.ReadStream = null;
-            this.DownloadManager.OnClose();
+            if (this.IsInitialized)
+                this.PutioFile.Fs.DownloadManager.Unregister(this);
             this.Dispose(true);
         }
 

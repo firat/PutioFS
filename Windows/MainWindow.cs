@@ -17,6 +17,7 @@ namespace PutioFS.Windows
         public NotifyIcon notify_icon;
         public Dictionary<String, MenuItem> context_menu_items = new Dictionary<String, MenuItem>();
         public readonly ApplicationContext AppContext;
+        public readonly WinMounter Mounter;
 
         //dbt.h and winuser.h
         private const int WM_DEVICECHANGE = 0x0219;
@@ -39,8 +40,9 @@ namespace PutioFS.Windows
             public int dbcv_flags;
         }
 
-        public MainWindow()
+        public MainWindow(WinMounter wm)
         {
+            this.Mounter = wm;
             InitializeComponent();
             this.AppContext = new ApplicationContext();
         }
@@ -80,12 +82,12 @@ namespace PutioFS.Windows
                 {
                     DEV_BROADCAST_VOLUME Volume = (DEV_BROADCAST_VOLUME)Marshal.PtrToStructure(m.LParam, typeof(DEV_BROADCAST_VOLUME));
                     char DriveLetter = GetDriveLetterFromMask(Volume.dbcv_unitmask);
-                    if (DriveLetter == WinMount.drive_letter)
+                    if (DriveLetter == this.Mounter.DriveLetter)
                     {
-                        if (WinMount.Silent)
-                            WinMount.Silent = false;
+                        if (this.Mounter.Silent)
+                            this.Mounter.Silent = false;
                         else
-                            WinMount.ExploreDrive(null, null);
+                            this.Mounter.ExploreDrive(null, null);
                     }
                 }
             }
@@ -104,18 +106,18 @@ namespace PutioFS.Windows
             this.notify_icon.Icon = putio_icon;
             this.notify_icon.ContextMenu = new ContextMenu();
 
-            this.CreateMenuItem("Settings", WinMount.InvokeSettings);
-            this.CreateMenuItem("Mount", WinMount.TryMount);
-            this.CreateMenuItem("Unmount", WinMount.TryUnmount);
-            this.CreateMenuItem("Purge cache", WinMount.PurgeCache);
+            this.CreateMenuItem("Settings", this.Mounter.InvokeSettings);
+            this.CreateMenuItem("Mount", this.Mounter.TryMount);
+            this.CreateMenuItem("Unmount", this.Mounter.TryUnmount);
+            this.CreateMenuItem("Purge cache", this.Mounter.PurgeCache);
             this.notify_icon.ContextMenu.MenuItems.Add(new MenuItem("-"));
-            this.CreateMenuItem("Launch website", WinMount.LaunchWebsite);
-            this.CreateMenuItem("Explore drive", WinMount.ExploreDrive);
-            this.CreateMenuItem("Check for updates", WinMount.CheckForUpdates);
+            this.CreateMenuItem("Launch website", this.Mounter.LaunchWebsite);
+            this.CreateMenuItem("Explore drive", this.Mounter.ExploreDrive);
+            this.CreateMenuItem("Check for updates", this.Mounter.CheckForUpdates);
             this.notify_icon.ContextMenu.MenuItems.Add(new MenuItem("-"));
-            this.CreateMenuItem("Exit", WinMount.ExitApplication);
+            this.CreateMenuItem("Exit", this.Mounter.ExitApplication);
 
-            this.notify_icon.MouseClick += new MouseEventHandler(WinMount.RightClickHandler);
+            this.notify_icon.MouseClick += new MouseEventHandler(this.Mounter.RightClickHandler);
             this.notify_icon.Text = "Put.io Disk";
             this.Icon = putio_icon;
         }

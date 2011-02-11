@@ -15,6 +15,16 @@ namespace PutioFS.Core
 
         private static NLog.Logger logger = NLog.LogManager.GetCurrentClassLogger();
 
+        public static PutioFolder GetRootFolder(PutioFileSystem fs)
+        {
+            return new PutioFolder(fs);
+        }
+
+        private PutioFolder(PutioFileSystem fs)
+            : base(fs)
+        {
+        }
+
         public PutioFolder(PutioFsDataProvider data_provider, PutioFolder parent)
             : base(data_provider, parent)
         {
@@ -50,9 +60,9 @@ namespace PutioFS.Core
                         foreach (Item item in this.DataProvider.GetFsItems(this))
                         {
                             if (item.IsDirectory)
-                                this.SubFolders.Add(new PutioFolder(new PutioFsApiDataProvider(item), this));
+                                this.SubFolders.Add(new PutioFolder(new PutioFsApiDataProvider(this.Fs, item), this));
                             else
-                                this.Files.Add(new PutioFile(new PutioFsApiDataProvider(item), this));
+                                this.Files.Add(new PutioFile(new PutioFsApiDataProvider(this.Fs, item), this));
                         }
                         this.LastContentUpdate = DateTime.Now;
                     }

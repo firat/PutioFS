@@ -28,10 +28,12 @@ namespace PutioFS.Core
     public class PutioFsApiDataProvider : PutioFsDataProvider
     {
         private Item PutioItem;
+        public readonly PutioFileSystem Fs;
 
-        public PutioFsApiDataProvider(Item putio_item)
+        public PutioFsApiDataProvider(PutioFileSystem fs, Item putio_item)
         {
             this.PutioItem = putio_item;
+            this.Fs = fs;
         }
 
 
@@ -63,7 +65,7 @@ namespace PutioFS.Core
                 }
             }
         }
-        public override String URL { get { return this.PutioItem.StreamUrl + "/atk/" + PutioFileSystem.GetInstance().PutioApi.GetAccessToken(); } }
+        public override String URL { get { return this.PutioItem.StreamUrl + "/atk/" + this.Fs.PutioApi.GetAccessToken(); } }
         public override String ContentHash { get { return this.Id.ToString(); } }
         public override String LocalStorageDirectory { get { return Path.Combine(Constants.LocalStoragePath, this.ContentHash); } }
         public override String LocalStorageFile { get { return Path.Combine(this.LocalStorageDirectory, String.Format("{0}.pcd", this.ContentHash)); } }
@@ -71,7 +73,7 @@ namespace PutioFS.Core
 
         public override IEnumerable<Item> GetFsItems(PutioFolder folder)
         {
-            return PutioFileSystem.GetInstance().PutioApi.GetItems(this.PutioItem.Id);
+            return this.Fs.PutioApi.GetItems(this.PutioItem.Id);
         }
 
         public override PutioStream GetNewRemoteStream(long range_start, long range_end)

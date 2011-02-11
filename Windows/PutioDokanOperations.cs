@@ -9,7 +9,7 @@ using System.IO;
 using System.Threading;
 using System.Diagnostics;
 
-using WinMount.Properties;
+using WinMounter.Properties;
 
 namespace PutioFS.Windows
 {
@@ -19,24 +19,24 @@ namespace PutioFS.Windows
         public static String log_file = Path.Combine(Constants.LocalStoragePath, "..", "put.io.log");
         private static NLog.Logger logger = NLog.LogManager.GetCurrentClassLogger();
 
-        private PutioFolder root;
-        public readonly Char DriveLetter;
+        public readonly WinMounter Mounter;
 
-        public static void _DokanMount(object _DriveLetter)
+        public static void _DokanMount(object _wm)
         {
+            WinMounter wm = (WinMounter)_wm;
             DokanOptions opt = new DokanOptions();
-            PutioDokanOperations ops = new PutioDokanOperations((char)_DriveLetter);
+            PutioDokanOperations ops = new PutioDokanOperations(wm);
             opt.DebugMode = false;
-            opt.DriveLetter = ops.DriveLetter;
+            opt.DriveLetter = ops.Mounter.DriveLetter;
             opt.ThreadCount = 5;
             opt.VolumeLabel = "put.io";
             // opt.NetworkDrive = true;
             DokanNet.DokanMain(opt, ops);
         }
 
-        public static void _DokanUnmount(char DriveLetter)
+        public static void _DokanUnmount(Char drive_letter)
         {
-            DokanNet.DokanUnmount(DriveLetter);
+            DokanNet.DokanUnmount(drive_letter);
         }
 
         public static List<String> GetPathElements(String path)
@@ -53,17 +53,9 @@ namespace PutioFS.Windows
             return elements;
         }
 
-        public PutioDokanOperations(char DriveLetter)
+        public PutioDokanOperations(WinMounter wm)
         {
-            this.DriveLetter = DriveLetter;
-            Item item = new Item();
-            item.Name = @"\";
-            item.Id = "0";
-            item.IsDirectory = true;
-
-            PutioFsApiDataProvider adapter = new PutioFsApiDataProvider(item);
-            this.root = new PutioFolder(adapter, null);
-            this.root.GetFolders();
+            this.Mounter = wm;
         }      
 
         private PutioFsItem FindPutioFSItem(String path)
@@ -72,7 +64,7 @@ namespace PutioFS.Windows
             if (Path.GetFileName(path) == "desktop.ini")
                 return null;
 
-            PutioFolder result = this.root;
+            PutioFolder result = this.Mounter.PutioFileSystem.Root;
             foreach (String dir_name in PutioDokanOperations.GetPathElements(Path.GetDirectoryName(path)))
             {
                 result = result.GetFolder(dir_name);
@@ -95,6 +87,7 @@ namespace PutioFS.Windows
                 {
                     return -DokanNet.ERROR_ACCESS_DENIED;
                 }
+                
 
                 PutioFsItem fs_item = this.FindPutioFSItem(filename);
 
@@ -110,9 +103,11 @@ namespace PutioFS.Windows
                 else
                 {
                     PutioFile putio_file = (PutioFile)fs_item;
+                    // if (putio_file.ReachedHandleLimit())
+                    //    return DokanNet.ERROR_SHARING_VIOLATION;
                     PutioFileHandle handle = putio_file.Open();
                     Guid handle_ref = Guid.NewGuid();
-                    PutioFileSystem.GetInstance().AddHandle(handle_ref, putio_file.Open());
+                    this.Mounter.PutioFileSystem.AddHandle(handle_ref, putio_file.Open());
                     info.Context = handle_ref;
                     logger.Debug("CreateFile: {0} - {1}", filename, handle_ref);
                 }
@@ -158,8 +153,8 @@ namespace PutioFS.Windows
 
 
                 Guid handle_ref = (Guid)info.Context;
-                PutioFileSystem.GetInstance().GetHandle(handle_ref).Close();
-                PutioFileSystem.GetInstance().RemoveHandle(handle_ref);
+                this.Mounter.PutioFileSystem.GetHandle(handle_ref).Close();
+                this.Mounter.PutioFileSystem.RemoveHandle(handle_ref);
                 logger.Debug("CloseFile on {0} - {1}", filename, handle_ref);
                 return 0;
             }
@@ -174,7 +169,7 @@ namespace PutioFS.Windows
                 logger.Debug("ReadFile {0} bytes from {1}", buffer.Length, offset);
                 try
                 {
-                    PutioFileHandle handle = PutioFileSystem.GetInstance().GetHandle(handle_ref);
+                    PutioFileHandle handle = this.Mounter.PutioFileSystem.GetHandle(handle_ref);
                     if (this.FindPutioFSItem(filename) == null)
                         return DokanNet.ERROR_FILE_NOT_FOUND;
                     if (offset != handle.Position)

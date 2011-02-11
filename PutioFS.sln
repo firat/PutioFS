@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 11.00
 # Visual Studio 2010
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Core", "Core\Core.csproj", "{BDC8E893-F8A3-40E1-BAD7-963F7B0EED8B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WinMount", "Windows\WinMount.csproj", "{1A22397E-6A44-4D27-BF16-D79A0B9B9C44}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WinMounter", "Windows\WinMounter.csproj", "{1A22397E-6A44-4D27-BF16-D79A0B9B9C44}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{C7772724-6050-41E3-AC09-20F85AD0DFC1}"
 	ProjectSection(SolutionItems) = preProject
