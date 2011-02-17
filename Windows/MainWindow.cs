@@ -99,7 +99,7 @@ namespace PutioFS.Windows
         public void InitializeTrayIcon()
         {
             System.IO.Stream s = System.Reflection.Assembly.GetExecutingAssembly().GetManifestResourceStream(
-                                 "WinMount.Resources.putio.ico");
+                                 "WinMounter.Resources.putio.ico");
             Icon putio_icon = new Icon(s);
 
             this.notify_icon = new NotifyIcon();

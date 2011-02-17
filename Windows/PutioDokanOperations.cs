@@ -106,10 +106,9 @@ namespace PutioFS.Windows
                     // if (putio_file.ReachedHandleLimit())
                     //    return DokanNet.ERROR_SHARING_VIOLATION;
                     PutioFileHandle handle = putio_file.Open();
-                    Guid handle_ref = Guid.NewGuid();
-                    this.Mounter.PutioFileSystem.AddHandle(handle_ref, putio_file.Open());
-                    info.Context = handle_ref;
-                    logger.Debug("CreateFile: {0} - {1}", filename, handle_ref);
+                    this.Mounter.PutioFileSystem.AddHandle(handle);
+                    info.Context = handle.Guid;
+                    logger.Debug("CreateFile: {0} - {1}", filename, handle);
                 }
 
                 return 0;
@@ -134,12 +133,14 @@ namespace PutioFS.Windows
 
         public int Cleanup(String filename, DokanFileInfo info)
         {
-            //logger.Debug("CleanUp on {0} by {1}", filename, info.ProcessId);
+            // info.Context = null;
+            logger.Debug("CleanUp on {0} by {1}", filename, info.ProcessId);
             return 0;
         }
 
         public int CloseFile(String filename, DokanFileInfo info)
         {
+
             if (info.IsDirectory)
                 return 0;
 
@@ -151,11 +152,10 @@ namespace PutioFS.Windows
                 if (item.IsDirectory)
                     return 0;
 
-
-                Guid handle_ref = (Guid)info.Context;
-                this.Mounter.PutioFileSystem.GetHandle(handle_ref).Close();
-                this.Mounter.PutioFileSystem.RemoveHandle(handle_ref);
-                logger.Debug("CloseFile on {0} - {1}", filename, handle_ref);
+                PutioFileHandle handle = this.Mounter.PutioFileSystem.GetHandleByGuid((Guid)info.Context);
+                this.Mounter.PutioFileSystem.RemoveHandle(handle);
+                handle.Close();
+                info.Context = null;
                 return 0;
             }
         }
@@ -165,13 +165,12 @@ namespace PutioFS.Windows
         {
             lock (info)
             {
-                Guid handle_ref = (Guid)info.Context;
                 logger.Debug("ReadFile {0} bytes from {1}", buffer.Length, offset);
                 try
                 {
-                    PutioFileHandle handle = this.Mounter.PutioFileSystem.GetHandle(handle_ref);
-                    if (this.FindPutioFSItem(filename) == null)
-                        return DokanNet.ERROR_FILE_NOT_FOUND;
+                    PutioFileHandle handle = this.Mounter.PutioFileSystem.GetHandleByGuid((Guid)info.Context);
+                    // if (this.FindPutioFSItem(filename) == null)
+                    //    return DokanNet.ERROR_FILE_NOT_FOUND;
                     if (offset != handle.Position)
                         handle.Seek(offset);
                     readBytes = (uint)handle.Read(buffer, 0, buffer.Length);

@@ -115,14 +115,14 @@ namespace PutioFS.Windows
         {
             try
             {
-                this.MainWindow.ToggleMountUnmount(Mounted);
+                this.MainWindow.ToggleMountUnmount(false);
                 Api api = this.GetApiInfoFromSettings();
                 api.GetUserInfo();
                 this.PutioFileSystem = new PutioFileSystem(api);
                 Thread dokan_thread = new Thread(PutioDokanOperations._DokanMount);
                 dokan_thread.Start(this);
                 Mounted = true;
-                this.MainWindow.ToggleMountUnmount(Mounted);
+                this.MainWindow.ToggleMountUnmount(true);
             }
             catch (PutioException)
             {
@@ -308,6 +308,7 @@ namespace PutioFS.Windows
                 mounter.RefreshCacheSize();
                 mounter.MainWindow.notify_icon.Visible = true;
                 Application.Run();
+                logger.Debug("Exiting.");
                 mounter.MainWindow.notify_icon.Visible = false;
             }
             finally

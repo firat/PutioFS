@@ -13,18 +13,20 @@ namespace PutioFS.Core
     /// </summary>
     public class DownloadManager
     {
+        private static NLog.Logger logger = NLog.LogManager.GetCurrentClassLogger();
+
         public Boolean Online;
         public int MaxConnections;
 
-        private Dictionary<PutioFileHandle, Downloader> Handles;
-        private List<Downloader> Downloaders;
-        private Queue<PutioFileHandle> Queue;
+        private object Padlock = new object();
+
+        private Downloader Downloader;
+        private List<PutioFileHandle> Queue;
 
         public DownloadManager(int max_connection_count)
         {
-            this.Handles = new Dictionary<PutioFileHandle, Downloader>();
-            this.Downloaders = new List<Downloader>();
-            this.Queue = new Queue<PutioFileHandle>();
+            this.Downloader = new Downloader(this);
+            this.Queue = new List<PutioFileHandle>();
             this.Online = false;
             this.MaxConnections = max_connection_count;
         }
@@ -32,163 +34,184 @@ namespace PutioFS.Core
 
         public Boolean Register(PutioFileHandle handle)
         {
-            lock (this.Handles)
+            lock (this.Padlock)
             {
-                // If this handle is already registered, return with failure.
-                if (this.Handles.ContainsKey(handle))
-                    return false;
-                lock (this.Downloaders)
-                {
-                    // Check if we have an existing downloader close to the handle's position.
-                    // If we find one, attach the handle to that.
-                    foreach (Downloader d in this.Downloaders)
-                    {
-                        if (d.IsCloseToPosition(handle.Position))
-                        {
-                            d.AddHandle(handle);
-                            this.Handles.Add(handle, d);
-                            return true;
-                        }
-
-                    }
-
-                    if (this.Downloaders.Count > this.MaxConnections)
-                        this.Queue.Enqueue(handle);
-                    else
-                    {
-
-                    }
-                    return true;
-                }
+               if (this.Queue.Contains(handle))
+                   return false;
+               logger.Debug("Registering handle {0}", handle);
+               this.Queue.Add(handle);
+               this.ProcessQueue();
+               return true;
             }
         }
 
         public Boolean Unregister(PutioFileHandle handle)
         {
-            throw new Exception("Not implemented.");
+            lock (this.Padlock)
+            {
+                if (!this.Queue.Contains(handle))
+                    return false;
+                logger.Debug("UNRegistering handle {0}", handle);
+                this.Queue.Remove(handle);
+                this.ProcessQueue();
+                return true;
+            }
         }
 
         public Boolean UpdatePosition(PutioFileHandle handle)
         {
-            throw new Exception("Not implemented.");
+            lock (this.Padlock)
+            {
+                this.ProcessQueue();
+                return true;
+            }
         }
 
-        public void UpdateDownloaders()
+        public void ProcessQueue()
         {
-            throw new Exception("Not implemented.");
+            lock (this.Padlock)
+            {
+                int counter = 0;
+                while(this.Queue.Count > counter)
+                {
+                    PutioFileHandle h = this.Queue.ElementAt(counter);
+                    if (h.PutioFile.Cache.GetNextBufferRange(h.Position) == null)
+                    {
+                        counter++;
+                        continue;
+                    }
+
+                    this.Downloader.Download(h);
+                    break;
+                }
+
+                if (this.Queue.Count == 0)
+                {
+                    logger.Debug("There are zero handles, stopping download.");
+                    this.Downloader.Stop();
+                }
+            }   
         }
-      
+
     }
 
     class Downloader
     {
+        private object Padlock = new object();
+
         private long InitialPosition;
         private long CurrentPosition;
-        private List<PutioFileHandle> Handles;
-        private int ConnectionCount;
+        private Boolean ContinueDownloading;
+        private DownloadManager DM;
 
-        public Downloader(PutioFileHandle handle)
+        private PutioFileHandle _Handle;
+        public PutioFileHandle Handle
         {
-            throw new Exception("Not implemented.");
+            get { return this._Handle; }
+            set
+            {
+                this._Handle = value;
+            }
         }
 
-        public Boolean AddHandle(PutioFileHandle handle)
+        private Thread DLThread;
+
+        public Boolean IsActive { get { return this.ContinueDownloading; } }
+
+        public Downloader(DownloadManager dm)
         {
-            throw new Exception("Not implemented.");
+            this.DM = dm;
         }
 
-        public void SetConnectionCount(int n)
-        {
-            throw new Exception("Not implemented.");
-        }
 
-        public Boolean IsCloseToPosition(long pos)
+        public void Download(PutioFileHandle h)
         {
-            throw new Exception("Not implemented.");
-        }
-
-        public void Start()
-        {
-            throw new Exception("Not implemented.");
+            lock (this.Padlock)
+            {
+                if (this.DLThread != null && this.DLThread.IsAlive)
+                {
+                    if (this.Handle == h)
+                        return;
+                    this.Stop();
+                    this.Handle = h;
+                    this.ContinueDownloading = true;
+                    this.DLThread = new Thread(DownloadJob);
+                    this.DLThread.Start();
+                }
+                else
+                {
+                    this.Handle = h;
+                    this.DLThread = new Thread(DownloadJob);
+                    this.ContinueDownloading = true;
+                    this.DLThread.Start();
+                }
+            }
         }
 
         public void Stop()
         {
-            throw new Exception("Not implemented.");
+            lock (this.Padlock)
+            {
+                if (this.DLThread == null || !this.DLThread.IsAlive)
+                    return;
+                this.ContinueDownloading = false;
+                this.DLThread.Join();
+            }
+        }
+
+        public Boolean IsClosetoHandle(LongRange range, long position)
+        {
+            if (this.Handle.BufferPosition < range.Start)
+                return false;
+            return this.Handle.BufferPosition <= (position + Constants.CHUNK_TOLERANCE);
+        }
+
+        public void DownloadJob()
+        {
+            byte[] buffer = new byte[Constants.CHUNK_READ_SIZE];
+            PutioStream remote_stream = null;
+            FileStream write_stream = this.Handle.PutioFile.DataProvider.GetNewLocalWriteStream();
+            try
+            {
+                while (this.ContinueDownloading)
+                {
+                    LongRange range = this.Handle.PutioFile.Cache.GetNextBufferRange(this.Handle.Position);
+                    if (range != null)
+                    {
+                        long position = range.Start;
+                        remote_stream = this.Handle.PutioFile.DataProvider.GetNewRemoteStream(range.Start, range.End);
+                        int count = remote_stream.Read(buffer, 0, buffer.Length);
+                        write_stream.Seek(position, SeekOrigin.Begin);
+                        while (this.ContinueDownloading && count > 0 && position < range.End && this.IsClosetoHandle(range, position))
+                        {
+                            write_stream.Write(buffer, 0, count);
+                            write_stream.Flush(true);
+                            this.Handle.PutioFile.Cache.MarkAsBuffered(position, position + count);
+                            position += count;
+                            count = remote_stream.Read(buffer, 0, buffer.Length);
+                            if (position == this.Handle.PutioFile.Size)
+                                Debug.WriteLine("!!");
+                        }
+                        remote_stream.Close();
+                        remote_stream = null;
+                        if (position != range.End && this.ContinueDownloading)
+                            Debug.WriteLine("Why not?");
+                    }
+                    else
+                    {
+                        return;
+                    }
+                }
+            }
+            finally
+            {
+                write_stream.Close();
+                if (remote_stream != null)
+                    remote_stream.Close();
+                this.Handle = null;
+                if (this.ContinueDownloading)
+                    new Thread(this.DM.ProcessQueue).Start();
+            }
         }
     }
-
-    //class DownloadTask
-    //{
-    //    public long Position;
-
-    //    private Thread DownloadThread;
-    //    private Boolean ContinueDownloading;
-    //    private PutioFileHandle Handle;
-
-    //    public Boolean IsAlive { get { return this.DownloadThread.IsAlive; } }
-    //    public DownloadTask(PutioFileHandle handle, long offset)
-    //    {
-    //        this.Position = offset;
-    //        this.Handle = handle;
-    //        this.ContinueDownloading = true;
-    //        this.DownloadThread = new Thread(DownloadJob);
-    //        this.DownloadThread.Start();
-    //    }
-
-    //    public void Stop()
-    //    {
-    //        this.ContinueDownloading = false;
-    //        this.DownloadThread.Join();
-    //    }
-
-    //    public Boolean IsCloseTo(long offset)
-    //    {
-    //        return offset >= this.Position && this.Position + Constants.CHUNK_TOLERANCE >= offset;
-    //    }
-
-    //    public void DownloadJob()
-    //    {
-    //        byte[] buffer = new byte[Constants.CHUNK_READ_SIZE];
-    //        PutioStream remote_stream = null;
-    //        FileStream write_stream = this.Handle.PutioFile.DataProvider.GetNewLocalWriteStream();
-    //        try
-    //        {
-    //            while (this.ContinueDownloading)
-    //            {
-    //                LongRange range = this.Handle.PutioFile.Cache.GetNextBufferRange(this.Position);
-    //                if (range != null)
-    //                {
-    //                    remote_stream = this.Handle.PutioFile.DataProvider.GetNewRemoteStream(range.Start, range.End);
-    //                    this.Position = range.Start;
-    //                    int count = remote_stream.Read(buffer, 0, buffer.Length);
-    //                    write_stream.Seek(this.Position, SeekOrigin.Begin);
-    //                    while (this.ContinueDownloading && count > 0 && this.Position < range.End)
-    //                    {
-    //                        write_stream.Write(buffer, 0, count);
-    //                        write_stream.Flush(true);
-    //                        this.Handle.PutioFile.Cache.MarkAsBuffered(this.Position, this.Position + count);
-    //                        this.Position += count;
-    //                        count = remote_stream.Read(buffer, 0, buffer.Length);
-    //                        if (this.Position == this.Handle.PutioFile.Size)
-    //                            Debug.WriteLine("!!");
-    //                    }
-    //                    if (this.Position != range.End && this.ContinueDownloading)
-    //                        Debug.WriteLine("Why not?");
-    //                }
-    //                else
-    //                {
-    //                    return;
-    //                }
-    //            }
-    //        }
-    //        finally
-    //        {
-    //            write_stream.Close();
-    //            if (remote_stream != null)
-    //                remote_stream.Close();
-    //        }
-    //    }
-    //}
-
 }

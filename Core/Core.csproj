@@ -50,6 +50,7 @@
   <ItemGroup>
     <Compile Include="Constants.cs" />
     <Compile Include="DownloadManager.cs" />
+    <Compile Include="LongRange.cs" />
     <Compile Include="PutioFileSystem.cs" />
     <Compile Include="LocalFileCache.cs" />
     <Compile Include="LongRangeCollection.cs" />

@@ -22,22 +22,27 @@ namespace PutioFS.Core
             this.PutioApi = putio_api;
             this.OpenHandles = new Dictionary<Guid, PutioFileHandle>();
             this.Root = PutioFolder.GetRootFolder(this);
-            this.DownloadManager = new DownloadManager();
+            this.DownloadManager = new DownloadManager(Constants.MAX_CONNECTIONS);
         }
 
-        public void AddHandle(Guid handle_ref, PutioFileHandle handle)
+        public void AddHandle(PutioFileHandle handle)
         {
-            this.OpenHandles.Add(handle_ref, handle);
+            this.OpenHandles.Add(handle.Guid, handle);
         }
 
-        public PutioFileHandle GetHandle(Guid handle_ref)
+        public PutioFileHandle GetHandleByGuid(Guid handle_guid)
         {
-            return this.OpenHandles[handle_ref];
+            return this.OpenHandles[handle_guid];
         }
 
-        public void RemoveHandle(Guid handle_ref)
+        public void RemoveHandle(PutioFileHandle handle)
         {
-            this.OpenHandles.Remove(handle_ref);
+            this.OpenHandles.Remove(handle.Guid);
+        }
+
+        public Boolean IsValidHandle(PutioFileHandle handle)
+        {
+            return this.OpenHandles.ContainsKey(handle.Guid);
         }
 
         public void CleanUp()

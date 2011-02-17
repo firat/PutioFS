@@ -17,23 +17,36 @@ namespace PutioFS.Core
     public class PutioFileHandle : IDisposable
     {
         private static NLog.Logger logger = NLog.LogManager.GetCurrentClassLogger();
-
         private bool _IsDisposed = false;
+        private bool IsClosed = false;
         private bool IsInitialized = false;
         public long Position { get { try { return this.ReadStream.Position; } catch { return 0; } } }
+        public long BufferPosition { get { return this.PutioFile.Cache.GetNextBufferRange(this.Position).Start; } }
         public readonly PutioFile PutioFile;
+        public readonly Guid Guid;
         private Stream ReadStream;
         private object ReadSeekLock = new object();
 
         public PutioFileHandle(PutioFile file)
         {
             this.PutioFile = file;
+            this.Guid = Guid.NewGuid();
             this.ReadStream = file.DataProvider.GetNewLocalReadStream();
         }
 
         private void Initialize()
         {
-            this.PutioFile.Fs.DownloadManager.Register(this);
+            if (!this.IsInitialized)
+            {
+                lock (this)
+                {
+                    if (!this.IsInitialized)
+                    {
+                        this.PutioFile.Fs.DownloadManager.Register(this);
+                        this.IsInitialized = true;
+                    }
+                }
+            }
         }
 
         public int Read(byte[] buffer, int buffer_start_index, int max_read_size)
@@ -43,12 +56,19 @@ namespace PutioFS.Core
 
             lock (this.ReadSeekLock)
             {
-                if (!this.IsInitialized)
-                    this.Initialize();
-
+                this.Initialize();
                 max_read_size = (int)Math.Min(max_read_size, this.PutioFile.Size - this.Position);
+                int counter = 0;
                 while (this.PutioFile.Cache.CacheRange(this.Position) == 0)
+                {
                     Thread.Sleep(50);
+                    if (counter >= 500 && !this.PutioFile.Fs.IsValidHandle(this))
+                    {
+                        // this.PutioFile.Fs.DownloadManager.Unregister(this);
+                        return 0;
+                    }
+                    counter++;
+                }
                 return this.ReadStream.Read(buffer, 
                                             buffer_start_index, 
                                             (int)Math.Min(this.PutioFile.Cache.CacheRange(this.Position), max_read_size));
@@ -62,10 +82,8 @@ namespace PutioFS.Core
                 if (offset == this.Position)
                     return offset;
                 long pos = this.ReadStream.Seek(offset, SeekOrigin.Begin);
+                this.Initialize(); // Initialize after seeking the handle!
                 
-                // Initialize the handle after seek.
-                if (!this.IsInitialized)
-                    this.Initialize();
                 this.PutioFile.Fs.DownloadManager.UpdatePosition(this);
 
                 return pos;
@@ -77,8 +95,18 @@ namespace PutioFS.Core
         {
             this.ReadStream.Close();
             this.ReadStream = null;
-            if (this.IsInitialized)
-                this.PutioFile.Fs.DownloadManager.Unregister(this);
+
+            lock (this)
+            {
+                if (this.IsClosed)
+                    throw new Exception("Close ona closed file handle!");
+                this.IsClosed = true;
+            }
+
+            lock (this)
+                if (this.IsInitialized)
+                    this.PutioFile.Fs.DownloadManager.Unregister(this);
+            
             this.Dispose(true);
         }
 

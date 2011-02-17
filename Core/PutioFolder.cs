@@ -13,6 +13,8 @@ namespace PutioFS.Core
         private List<PutioFile> Files;
         private DateTime LastContentUpdate;
 
+        private Boolean Initialized = false;
+
         private static NLog.Logger logger = NLog.LogManager.GetCurrentClassLogger();
 
         public static PutioFolder GetRootFolder(PutioFileSystem fs)
@@ -34,18 +36,16 @@ namespace PutioFS.Core
 
         private bool ShouldUpdateContents()
         {
-            if (this.LastContentUpdate == null)
-                return true;
+            //if (this.LastContentUpdate.AddSeconds(Constants.FOLDER_UPDATE_INTERVAL_SECONDS) < DateTime.Now)
+            //{
+            //    return true;
+            //}
 
-            if (this.LastContentUpdate.AddSeconds(Constants.FOLDER_UPDATE_INTERVAL_SECONDS) < DateTime.Now)
-            {
-                return true;
-            }
-
-            return false;
+            // return false;
+            return !this.Initialized;
         }
 
-        private void UpdateContent()
+        private void UpdateContents()
         {
             if (this.ShouldUpdateContents())
             {
@@ -54,6 +54,7 @@ namespace PutioFS.Core
                     // Check again if somebody else with the lock already cached these...
                     if (this.ShouldUpdateContents())
                     {
+                        
                         logger.Debug("Updating folder contents for {0}", this.Name);
                         this.SubFolders = new List<PutioFolder>();
                         this.Files = new List<PutioFile>();
@@ -65,6 +66,7 @@ namespace PutioFS.Core
                                 this.Files.Add(new PutioFile(new PutioFsApiDataProvider(this.Fs, item), this));
                         }
                         this.LastContentUpdate = DateTime.Now;
+                        this.Initialized = true;
                     }
                 }
             }
@@ -72,7 +74,7 @@ namespace PutioFS.Core
 
         public PutioFsItem GetItem(String name)
         {
-            this.UpdateContent();
+            this.UpdateContents();
             foreach (PutioFolder folder in this.SubFolders)
             {
                 if (folder.Name == name)
@@ -90,7 +92,7 @@ namespace PutioFS.Core
 
         public PutioFile GetFile(String name)
         {
-            this.UpdateContent();
+            this.UpdateContents();
             foreach (PutioFile file in this.Files)
             {
                 if (file.Name == name)
@@ -102,7 +104,7 @@ namespace PutioFS.Core
 
         public PutioFolder GetFolder(String name)
         {
-            this.UpdateContent();
+            this.UpdateContents();
             foreach (PutioFolder folder in this.SubFolders)
             {
                 if (folder.Name == name)
@@ -114,13 +116,13 @@ namespace PutioFS.Core
 
         public List<PutioFolder> GetFolders()
         {
-            this.UpdateContent();
+            this.UpdateContents();
             return this.SubFolders;
         }
 
         public List<PutioFile> GetFiles()
         {
-            this.UpdateContent();
+            this.UpdateContents();
             return this.Files;
         }
     }
